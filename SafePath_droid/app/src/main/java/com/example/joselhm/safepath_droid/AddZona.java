@@ -56,10 +56,11 @@ public class AddZona extends Fragment implements OnMapReadyCallback {
     private int calificacion;
     private TextView descripcion;
     private SeekBar seekBar_radio;
-    public EditText descripcion_text;
-
-    private Marker my_marker;
+    private String descriptionTxt;
     private Circle my_zone;
+
+    private LatLng locationDefault;
+    private GPSclass gps;
 
     @Nullable
     @Override
@@ -87,9 +88,13 @@ public class AddZona extends Fragment implements OnMapReadyCallback {
         Ini_seekBar_radio();
         Ini_botones_calificar();
         Ini_addDescription_pop();
-        descripcion_text = new EditText(getActivity());
-        descripcion_text.setText("");
 
+        /*
+        descripcion_text = new EditText(getActivity());
+        descripcion_text.setText("");*/
+
+        locationDefault = new LatLng(-16.411141,-71.540515);
+        gps = new GPSclass(getActivity(),false);
     }
 
 
@@ -108,21 +113,22 @@ public class AddZona extends Fragment implements OnMapReadyCallback {
             mMap = googleMap;
 
             //seteamos la latitud y longitud que se mostrara en el mapa
-            LatLng lat_lng = new LatLng(-16.4548539,-71.5405225);
+
             //LatLng lat_lng = new LatLng(location.getLatitude(),location.getLongitude());
             //El marcador y mi zona estaran juntos
-            my_marker = googleMap.addMarker(new MarkerOptions()
-                    .position(lat_lng)
+            gps.my_marker = googleMap.addMarker(new MarkerOptions()
+                    .position(locationDefault)
                     .title("Zona a añadir")
                     .draggable(true));
+            verificarGPS();
             my_zone = googleMap.addCircle(new CircleOptions()
-                    .center(lat_lng)
+                    .center(locationDefault)
                     .radius(10)
                     .strokeColor(Color.parseColor("#9CCC65"))
                     .fillColor(Color.parseColor("#33691E")));
 
             int zoom_ = 13;
-            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(lat_lng, zoom_));
+            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(locationDefault, zoom_));
 
             // Zoom out to zoom level 13, animating with a duration of 2 seconds.
             googleMap.animateCamera(CameraUpdateFactory.zoomTo(zoom_ + 3), 2000, null);
@@ -152,6 +158,20 @@ public class AddZona extends Fragment implements OnMapReadyCallback {
     }
 
     //-----------------------------------  FUNCIONES DE CALIFICACION ---------------------------------------------
+    //Si activa el GPS deberia de haber un boton de actualizar para mostrar su ubicacion
+    public void verificarGPS()
+    {
+        if(gps.IniGPS())
+        {
+            //change locationDefault
+            try{
+                locationDefault = new LatLng(gps.getLocation().getLatitude(),gps.getLocation().getLongitude());
+            }catch(Exception e){
+                //Log.d("Location1:","gps.getLocation().toString()");
+            }
+        }
+    }
+
     //Inicializamos los botones para calificar
     public void Ini_botones_calificar()
     {
@@ -241,9 +261,9 @@ public class AddZona extends Fragment implements OnMapReadyCallback {
         String idface = "1526487456";
         String idGoogle = "";
         String idExtra = "";
-        String descript = descripcion_text.getText().toString();
-        double lat = my_marker.getPosition().latitude;
-        double lng = my_marker.getPosition().longitude;
+        String descript = descriptionTxt;//descripcion_text.getText().toString();
+        double lat = gps.my_marker.getPosition().latitude;
+        double lng = gps.my_marker.getPosition().longitude;
         double radio = my_zone.getRadius();
         //calificacion->nivel
         if(calificacion==0){
@@ -310,12 +330,13 @@ public class AddZona extends Fragment implements OnMapReadyCallback {
                 //startActivity(new Intent(getActivity(), PopAddQualification.class));
                 AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(getActivity());
 
-
+                final EditText descripcion_text = new EditText(getActivity());
                 descripcion_text.setHint("Escribe una descripción ...");
                 descripcion_text.setHeight(configuration.getHeight(200));
                 descripcion_text.setGravity(Gravity.TOP);
 
                 alertDialogBuilder.setTitle("Añadir una descripción:");
+
                 // set prompts.xml to alertdialog builder
                 alertDialogBuilder.setView(descripcion_text);
 
@@ -324,12 +345,13 @@ public class AddZona extends Fragment implements OnMapReadyCallback {
                         .setNegativeButton("CANCELAR",
                                 new DialogInterface.OnClickListener() {
                                     public void onClick(DialogInterface dialog, int id) {
-                                        descripcion_text.setText("");
+                                        descriptionTxt = "";
                                         dialog.cancel();
                                     }
                                 })
                         .setPositiveButton("ACEPTAR", new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int id) {
+                                descriptionTxt = descripcion_text.getText().toString();
                                 descripcion.setTextColor(Color.parseColor("#1B5E20"));
                             }
                         });

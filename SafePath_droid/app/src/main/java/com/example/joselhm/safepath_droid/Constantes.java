@@ -40,6 +40,9 @@ public class Constantes {
     //Base de Datos URL
     public static String URL_BASE = "https://safepath-empresagaj.c9users.io";
     public static String LINK_BD_ZONA = "/api/zona";
+    //GPSclass
+    public static String GPS_DISABLED = "Tu GPS esta desactivado. ¿Te gustaria habilitarlo?";
+    public static String GPS_SETTINGS = "Activar GPS";
     //------------------------------- FUNCIONES --------------------------------------------
     public int getHeight(int value){
         return HEIGHT_PIXEL*value/DIMENSION_DESING_HEIGHT;

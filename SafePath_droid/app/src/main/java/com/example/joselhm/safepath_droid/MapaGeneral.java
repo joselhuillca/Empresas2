@@ -1,14 +1,20 @@
 package com.example.joselhm.safepath_droid;
 
+import android.Manifest;
 import android.app.Fragment;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.support.annotation.Nullable;
 import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.TaskStackBuilder;
 import android.support.v7.app.NotificationCompat;
 import android.util.Log;
@@ -22,8 +28,10 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -41,7 +49,14 @@ public class MapaGeneral extends Fragment implements OnMapReadyCallback {
 
     private GoogleMap mMap;
     public List<Zona> list_zonas;
-    private LatLng sydney;
+    private LatLng locationDefault;
+
+    private GPSclass gps;
+
+    private Location location;
+    private LocationManager locationManager;
+    private LocationListener locationListener;
+
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater,ViewGroup container,Bundle savedInstancestate)
@@ -57,10 +72,18 @@ public class MapaGeneral extends Fragment implements OnMapReadyCallback {
         fragment.getMapAsync(this);
 
         list_zonas = new ArrayList<Zona>();
-        sydney = new LatLng(-16.411141,-71.540515);
-        //load_zones();
+        locationDefault = new LatLng(-16.411141,-71.540515);
+
+        gps = new GPSclass(getActivity(),true);
+
     }
 
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        gps.terminarLocalizacion();
+        list_zonas.clear();
+    }
 
     /**
      * Manipulates the map once available.
@@ -76,52 +99,49 @@ public class MapaGeneral extends Fragment implements OnMapReadyCallback {
         try{
             int zoom_ = 10;
             mMap = googleMap;
+            //cargamos zonas y cambiamos locationDefault
+            load_zones();
+            //getLocation();
+            //Animaciones para el marker
+            gps.my_marker = mMap.addMarker(new MarkerOptions().position(locationDefault).title("Tu estas aqui!"));
+            verificarGPS();
 
-            // Add a marker in Sydney and move the camera
-
-            mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(sydney, zoom_));
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(locationDefault, zoom_));
 
             // Zoom out to zoom level 10, animating with a duration of 2 seconds.
             mMap.animateCamera(CameraUpdateFactory.zoomTo(zoom_ + 5), 2000, null);
 
-            /*for(int i=0;i<list_zonas.size();i++){
-                googleMap.addCircle(new CircleOptions()
-                        .center(new LatLng(list_zonas.get(i).getLat(), list_zonas.get(i).getLng()))
-                        .radius(list_zonas.get(i).getRadio())
-                        .strokeColor(Color.parseColor(Constantes.list_colores.get(list_zonas.get(i).nivel)))
-                        .fillColor(Color.parseColor(Constantes.list_colores_center.get(list_zonas.get(i).nivel))));
-            }*/
-            //notificZonaP();
-            load_zones(googleMap);
-            //drawZonas(mMap);
-            /*mMap.addCircle(new CircleOptions()
-                    .center(new LatLng(-16.411141, -71.540515))
-                    .radius(54)
-                    .strokeColor(Color.parseColor(Constantes.list_colores.get(1)))
-                    .fillColor(Color.parseColor(Constantes.list_colores_center.get(1))));*/
+
         }catch (Exception e){
             //Problemas al cargar el mapa
         }
     }
 
+
     //MIS FUNCIONES
 
+    //Si activa el GPS deberia de haber un boton de actualizar para mostrar su ubicacion
+    public void verificarGPS()
+    {
+        if(gps.IniGPS())
+        {
+            //change locationDefault
+            try{
+                locationDefault = new LatLng(gps.getLocation().getLatitude(),gps.getLocation().getLongitude());
+            }catch(Exception e){
+                //Log.d("Location1:","gps.getLocation().toString()");
+            }
+        }
+    }
+
     //Cargar las Zonas de la Base de Datos
-    public  void load_zones(GoogleMap googleMap)
+    public  void load_zones()
     {
         try{
             list_zonas.clear();
             AsyncHttpClient client = new AsyncHttpClient();
 
-            client.get(Constantes.URL_BASE + Constantes.LINK_BD_ZONA, null,getzonas(googleMap));
-            /*list_zonas = new ArrayList<Zona>();
-            list_zonas.add(new Zona(-16.4548539,-71.5405225,70,"Zona1",2));
-            list_zonas.add(new Zona(-16.4513143,-71.5269613,90,"Zona2",1));
-            list_zonas.add(new Zona(-16.4331215, -71.5361452, 110, "Zona3", 1));
-            list_zonas.add(new Zona(-16.4290052, -71.5222406, 70, "Zona4", 2));
-            list_zonas.add(new Zona(-16.4164912, -71.5395784, 160, "Zona5", 1));
-            list_zonas.add(new Zona(-16.4008476, -71.5428400, 84, "Zona6", 2));*/
+            client.get(Constantes.URL_BASE + Constantes.LINK_BD_ZONA, null,getzonas());
         }catch (Exception e) {
             //
         }
@@ -129,40 +149,49 @@ public class MapaGeneral extends Fragment implements OnMapReadyCallback {
     }
 
     //Dibujar las zonas en el mapa
-    public void drawZonas(final GoogleMap googleMap){
-        Toast.makeText(getActivity(), String.valueOf(list_zonas.size()), Toast.LENGTH_LONG).show();
-        Thread t=new Thread()
-        {
-            public void run()
-            {
-                try {
-                    sleep(1000);
-                    for(int i=0;i<list_zonas.size();i++){
-                        int nivel = list_zonas.get(i).getNivel()-1;
-                        if(nivel>=5){nivel=4;}
-                        googleMap.addCircle(new CircleOptions()
-                        .center(new LatLng(list_zonas.get(i).getLat(), list_zonas.get(i).getLng()))
+    public void drawZonas(){
+        try {
+            for(int i=0;i<list_zonas.size();i++){
+                int nivel = list_zonas.get(i).getNivel()-1;
+                if(nivel>=5){nivel=4;}
+                final LatLng posicionZona= new LatLng(list_zonas.get(i).getLat(), list_zonas.get(i).getLng());
+                //Añadimos las zonas
+                mMap.addCircle(new CircleOptions()
+                        .center(posicionZona)
                         .radius(list_zonas.get(i).getRadio())
                         .strokeColor(Color.parseColor(Constantes.list_colores.get(nivel)))
                         .fillColor(Color.parseColor(Constantes.list_colores_center.get(nivel))));
-                        /*Log.d("Lat:",String.valueOf(list_zonas.get(i).getLat()));
-                        Log.d("Lng:",String.valueOf(list_zonas.get(i).getLng()));
-                        Log.d("Radio:",String.valueOf(list_zonas.get(i).getRadio()));
-                        Log.d("Color1:",String.valueOf(Constantes.list_colores.get(nivel)));
-                        Log.d("Color2:",String.valueOf(Constantes.list_colores_center.get(nivel)));*/
-                    }
-                }
-                catch (InterruptedException e) {
-                    //e.printStackTrace();
-                }
+                        //Log.d("Lat:",String.valueOf(list_zonas.get(i).getLat()));
+                //Añadir los marcadores para las zonas
+                mMap.addMarker(new MarkerOptions()
+                        .position(posicionZona)
+                        .title(list_zonas.get(i).getDescripcion())
+                        .icon(BitmapDescriptorFactory.fromResource(icon_nivel_zona(nivel))));
             }
-        };
-        t.start();
+        }
+        catch (Exception e) {
+            //e.printStackTrace();
+        }
+    }
 
+    //Icono Adecuado segun el nivel de zona
+    public int icon_nivel_zona(int nivel)
+    {
+        int icon_nivel = 0;
+        if(nivel==0 || nivel==1){
+            icon_nivel = R.drawable.icon_niv_bajo;
+        }else{
+            if(nivel==3 || nivel==2){
+                icon_nivel = R.drawable.icon_niv_medio;
+            }else{
+                icon_nivel = R.drawable.icon_niv_alto;
+            }
+        }
+        return  icon_nivel;
     }
 
     //Mostrar mensajes al añadir una zona
-    private AsyncHttpResponseHandler getzonas(final GoogleMap googleMap) {
+    private AsyncHttpResponseHandler getzonas() {
         return new AsyncHttpResponseHandler() {
             ProgressDialog pDialog;
 
@@ -206,21 +235,10 @@ public class MapaGeneral extends Fragment implements OnMapReadyCallback {
                     z.setRadio(json.get("radio").getAsInt());
                     z.setDescripcion(json.get("descripcion").getAsString());
                     z.setNivel(json.get("nivel").getAsInt());
-                    //z.set_v(_v);
                     list_zonas.add(z);
-                    /*mMap.addCircle(new CircleOptions()
-                            .center(new LatLng(z.getLat(), z.getLng()))
-                            .radius(z.getRadio())
-                            .strokeColor(Color.parseColor(Constantes.list_colores.get(z.getNivel())))
-                            .fillColor(Color.parseColor(Constantes.list_colores_center.get(z.getNivel()))));*/
 
                 }
-                drawZonas(googleMap);
-                /*mMap.addCircle(new CircleOptions()
-                        .center(new LatLng(-16.411141, -71.540515))
-                        .radius(54)
-                        .strokeColor(Color.parseColor(Constantes.list_colores.get(1)))
-                        .fillColor(Color.parseColor(Constantes.list_colores_center.get(1))));*/
+                drawZonas();
                 Toast.makeText(getActivity(), "Zonas Cargadas...!", Toast.LENGTH_LONG).show();
 
             }
@@ -233,7 +251,7 @@ public class MapaGeneral extends Fragment implements OnMapReadyCallback {
         double dist = 100;
         boolean a= false;
         for(int i=0;i<list_zonas.size();i++){
-            double distancia = Math.sqrt(Math.pow(sydney.latitude-list_zonas.get(i).lat,2)+Math.pow(sydney.longitude-list_zonas.get(i).lng,2));
+            double distancia = Math.sqrt(Math.pow(locationDefault.latitude-list_zonas.get(i).lat,2)+Math.pow(locationDefault.longitude-list_zonas.get(i).lng,2));
             if(distancia<dist){
                 showNotification();
             }
@@ -260,4 +278,6 @@ public class MapaGeneral extends Fragment implements OnMapReadyCallback {
         NotificationManager NM= (NotificationManager) getActivity().getSystemService(getActivity().NOTIFICATION_SERVICE);
         NM.notify(0,builder.build());
     }
+
+
 }

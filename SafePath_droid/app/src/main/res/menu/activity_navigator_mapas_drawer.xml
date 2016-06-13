@@ -4,15 +4,15 @@
     <group android:checkableBehavior="single">
         <item
             android:id="@+id/nav_cuenta"
-            android:icon="@drawable/ic_menu_send"
+            android:icon="@drawable/icon_perfil"
             android:title="Mi Cuenta" />
         <item
             android:id="@+id/nav_rutas"
-            android:icon="@drawable/ic_menu_gallery"
+            android:icon="@drawable/icon_flecha"
             android:title="Mis Rutas" />
         <item
             android:id="@+id/nav_calificaciones"
-            android:icon="@drawable/ic_menu_share"
+            android:icon="@drawable/icon_estrella"
             android:title="Mis Calificaciones" />
     </group>
 

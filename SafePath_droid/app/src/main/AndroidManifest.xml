@@ -57,12 +57,7 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/google_maps_key" />
 
-        <activity
-            android:name=".MapaGeneral"
-            android:label="@string/title_activity_mapa_general" />
-        <activity
-            android:name=".AddZona"
-            android:label="@string/title_activity_add_zona" />
+
         <activity android:name=".About" />
         <activity android:name=".MiCuenta" />
         <activity android:name=".Registrarse"></activity>
